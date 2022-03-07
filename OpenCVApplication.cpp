@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "common.h"
+#include <vector>
 
 
 void testOpenImage()
@@ -391,7 +392,7 @@ void testMouseClick()
 // Lab - 01
 
 // Lab - 02
-void ex124()
+void l2ex124()
 {
 	char fname[MAX_PATH];
 	while (openFileDlg(fname))
@@ -459,7 +460,7 @@ void ex124()
 	}
 }
 
-void ex3() {
+void l2ex3() {
 	char fname[MAX_PATH];
 	while (openFileDlg(fname))
 	{
@@ -484,11 +485,14 @@ void ex3() {
 	}
 }
 
-bool isInside(Mat img, int row, int col) {
-	return row <= img.rows && col <= img.cols && row >= 0 && col >= 0;
+bool isInside(Mat img, int i, int j) {
+	if ((i < img.rows) && (j < img.cols) && (i >= 0) && (j >= 0))
+		return true;
+	else
+		return false;
 }
 
-void ex5() {
+void l2ex5() {
 	char fname[MAX_PATH];
 	while (openFileDlg(fname))
 	{
@@ -540,12 +544,12 @@ void showHistogram(const std::string& name, int* hist, const int  hist_cols, con
 	imshow(name, imgHist);
 }
 
-void showHistogram(const std::string& name, float* hist, const int  hist_cols, const int hist_height)
+void showHistogram(const std::string& name, double* hist, const int  hist_cols, const int hist_height)
 {
 	Mat imgHist(hist_height, hist_cols, CV_8UC3, CV_RGB(255, 255, 255)); // constructs a white image
 
 	//computes histogram maximum
-	int max_hist = 0;
+	double max_hist = 0;
 	for (int i = 0; i < hist_cols; i++)
 		if (hist[i] > max_hist)
 			max_hist = hist[i];
@@ -562,9 +566,9 @@ void showHistogram(const std::string& name, float* hist, const int  hist_cols, c
 	imshow(name, imgHist);
 }
 
-void fdp() {
+void l3ex1234() {
 	int hist[256] = {};
-	float fdp[256] = {};
+	double fdp[256] = {};
 	int histM[256] = {};
 	char fname[MAX_PATH];
 	int m = 0;
@@ -581,172 +585,118 @@ void fdp() {
 		for (int i = 0; i < 256; i++) {
 			fdp[i] = (float) hist[i] / (img.rows * img.cols);
 		}
-		int acc = 256 / m;
-		for (int k = 0; k < acc; k++) {
-			int newPrag = k * acc;
-			for (int j = newPrag; j <= newPrag + acc; j++) {
-				histM[k] += hist[j];
-			}
+		for (int i = 0; i < 256; i ++) {
+			int newBin = (int) (i / 256.0 * m);
+			std::cout << newBin << std::endl;
+			histM[newBin] += hist[i];
 		}
-		imshow("FDP", img);
+		imshow("Image", img);
 		showHistogram("Histogram", hist, 256, 256);
-		showHistogram("Histogram M", histM, 256, 256);
-		//showHistogram("Histogram FDP", fdp, 256, 256);
+		showHistogram("Histogram M", histM, m, 256);
+		showHistogram("Histogram FDP", fdp, 256, 256);
 		waitKey(0);
 	}
 }
 
-void praguri() {
+
+void l3ex56() {
+	int hist[256] = {};
+	double fdp[256] = {};
+	int histReduced[256] = {};
+	int histDithering[256] = {};
+	int maxims[256] = {};
+	int count = 0;
 	int WH = 5;
-	int TH = 0.0003;
-	float v;
-	int val;
-	int vec[255];
-	int count = 1;
-	int x[256] = {};
-	float y[256] = {};
+	double v;
+	double TH = 0.0003;
 	char fname[MAX_PATH];
 	while (openFileDlg(fname)) {
 		Mat img = imread(fname, IMREAD_GRAYSCALE);
+		Mat reduced = imread(fname, IMREAD_GRAYSCALE);
+		Mat dithering = imread(fname, IMREAD_GRAYSCALE);
 		for (int i = 0; i < img.rows; i++) {
 			for (int j = 0; j < img.cols; j++) {
-				x[img.at<uchar>(i, j)] ++;
-
+				hist[img.at<uchar>(i, j)] ++;
 			}
 		}
 		for (int i = 0; i < 256; i++) {
-			y[i] = (float)x[i] / (img.rows * img.cols);
+			fdp[i] = (double) hist[i] / (img.rows * img.cols);
 		}
-
-		for (int k = WH; k <= 255 - WH; k++) {
+		for (int i = WH; i <= 256 - WH; i ++) {
 			v = 0;
-			for (int i = k - WH; i <= k + WH; i++) {
-				v += y[i];
-				if (y[i] > y[k])
+			for (int j = i - WH; j < i + WH; j++) {
+				v += fdp[j];
+				if (fdp[j] > fdp[i])
 					v += 1000;
 			}
-			v = v / (2 * WH + 1);
-			if (y[k] > v + TH) {
-				vec[count] = k;
-				count++;
+			v /= (2 * WH + 1);
+			if (fdp[i] > v + TH) {
+				maxims[++count] = i;
 			}
 		}
-		vec[0] = 0;
-		vec[count] = 255;
-
+		maxims[0] = 0;
+		maxims[++count] = 255;
 		for (int i = 0; i < img.rows; i++) {
 			for (int j = 0; j < img.cols; j++) {
-				val = img.at<uchar>(i, j);
-				int min = 255;
-				int close;
-				for (int z = 0; z < count + 1; z++) {
-					if (abs(val - vec[z]) < min) {
-						min = abs(val - vec[z]);
-						close = vec[z];
-					}
-				}
-				img.at<uchar>(i, j) = close;
-			}
-		}
-
-		imshow("praguri", img);
-		waitKey();
-	}
-}
-
-void FloydSteinberg() {
-	int WH = 5;
-	float TH = 0.0003;
-	float v;
-	int val;
-	int vec[255];
-	int count = 1;
-	int x[256] = {};
-	float y[256] = {};
-	char fname[MAX_PATH];
-	while (openFileDlg(fname)) {
-		Mat img = imread(fname, IMREAD_GRAYSCALE);
-		for (int i = 0; i < img.rows; i++) {
-			for (int j = 0; j < img.cols; j++) {
-				x[img.at<uchar>(i, j)] ++;
-
-			}
-		}
-		for (int i = 0; i < 256; i++) {
-			y[i] = (float)x[i] / (img.rows * img.cols);
-		}
-
-		for (int k = WH; k <= 255 - WH; k++) {
-			v = 0;
-			for (int i = k - WH; i <= k + WH; i++) {
-				v += y[i];
-				if (y[i] > y[k])
-					v += 1000;
-			}
-			v = v / (2 * WH + 1);
-			if (y[k] > v + TH) {
-				vec[count] = k;
-				count++;
-			}
-		}
-		vec[0] = 0;
-		vec[count] = 255;
-
-		for (int i = 0; i < img.rows; i++) {
-			for (int j = 0; j < img.cols; j++) {
-				val = img.at<uchar>(i, j);
+				int val = img.at<uchar>(i, j);
 				int min = 256;
 				int close;
-				for (int z = 0; z < count + 1; z++) {
-					if (abs(vec[z] - val) < min) {
-						min = abs(vec[z] - val);
-						close = vec[z];
+				for (int z = 0; z <= count; z++) {
+					if (abs(maxims[z] - val) < min) {
+						min = abs(maxims[z] - val);
+						close = maxims[z];
 					}
 				}
-				img.at<uchar>(i, j) = close;
-				int eroare = val - close;
-				if (isInside(img, i + 1, j) == true) {
-					if ((img.at<uchar>(i + 1, j) + 7 * eroare / 16) < 0)
-						img.at<uchar>(i + 1, j) = 0;
-					else if ((img.at<uchar>(i + 1, j) + 7 * eroare / 16) > 255)
-						img.at<uchar>(i + 1, j) = 255;
+				reduced.at<uchar>(i, j) = close;
+				histReduced[reduced.at<uchar>(i, j)] ++;
+				int error = val - close;
+				if (isInside(dithering, i + 1, j)) {
+					if ((reduced.at<uchar>(i + 1, j) + 7 * error / 16) < 0)
+						dithering.at<uchar>(i + 1, j) = 0;
+					else if ((reduced.at<uchar>(i + 1, j) + 7 * error / 16) > 255)
+						dithering.at<uchar>(i + 1, j) = 255;
 					else
-						img.at<uchar>(i + 1, j) = img.at<uchar>(i + 1, j) + 7 * eroare / 16;
+						dithering.at<uchar>(i + 1, j) = reduced.at<uchar>(i + 1, j) + 7 * error / 16;
 				}
 
-				if (isInside(img, i - 1, j + 1) == true) {
-					if ((img.at<uchar>(i - 1, j + 1) + 3 * eroare / 16) < 0)
-						img.at<uchar>(i - 1, j + 1) = 0;
-					else if ((img.at<uchar>(i - 1, j + 1) + 3 * eroare / 16) > 255)
-						img.at<uchar>(i - 1, j + 1) = 255;
+				if (isInside(dithering, i - 1, j + 1) == true) {
+					if ((reduced.at<uchar>(i - 1, j + 1) + 3 * error / 16) < 0)
+						dithering.at<uchar>(i - 1, j + 1) = 0;
+					else if ((reduced.at<uchar>(i - 1, j + 1) + 3 * error / 16) > 255)
+						dithering.at<uchar>(i - 1, j + 1) = 255;
 					else
-						img.at<uchar>(i - 1, j + 1) = img.at<uchar>(i - 1, j + 1) + 3 * eroare / 16;
+						dithering.at<uchar>(i - 1, j + 1) = reduced.at<uchar>(i - 1, j + 1) + 3 * error / 16;
 				}
 
-				if (isInside(img, i, j + 1) == true) {
-					if ((img.at<uchar>(i, j + 1) + 5 * eroare / 16) < 0)
-						img.at<uchar>(i, j + 1) = 0;
-					else if ((img.at<uchar>(i, j + 1) + 5 * eroare / 16) > 255)
-						img.at<uchar>(i, j + 1) = 255;
+				if (isInside(dithering, i, j + 1) == true) {
+					if ((reduced.at<uchar>(i, j + 1) + 5 * error / 16) < 0)
+						dithering.at<uchar>(i, j + 1) = 0;
+					else if ((reduced.at<uchar>(i, j + 1) + 5 * error / 16) > 255)
+						dithering.at<uchar>(i, j + 1) = 255;
 					else
-						img.at<uchar>(i, j + 1) = img.at<uchar>(i, j + 1) + 5 * eroare / 16;
+						dithering.at<uchar>(i, j + 1) = reduced.at<uchar>(i, j + 1) + 5 * error / 16;
 				}
-				if (isInside(img, i + 1, j + 1) == true) {
-					if ((img.at<uchar>(i + 1, j + 1) + eroare / 16) < 0)
-						img.at<uchar>(i + 1, j + 1) = 0;
-					else if ((img.at<uchar>(i + 1, j + 1) + eroare / 16) > 255)
-						img.at<uchar>(i + 1, j + 1) = 255;
+				if (isInside(dithering, i + 1, j + 1) == true) {
+					if ((reduced.at<uchar>(i + 1, j + 1) + error / 16) < 0)
+						dithering.at<uchar>(i + 1, j + 1) = 0;
+					else if ((reduced.at<uchar>(i + 1, j + 1) + error / 16) > 255)
+						dithering.at<uchar>(i + 1, j + 1) = 255;
 					else
-						img.at<uchar>(i + 1, j + 1) = img.at<uchar>(i + 1, j + 1) + eroare / 16;
+						dithering.at<uchar>(i + 1, j + 1) = reduced.at<uchar>(i + 1, j + 1) + error / 16;
 				}
-
+				histDithering[dithering.at<uchar>(i, j)] ++;
 			}
 		}
-
-		imshow("Floyd Mayweather", img);
-		waitKey();
+		imshow("Image", img);
+		showHistogram("Histogram", hist, 256, 256);
+		imshow("Reduced", reduced);
+		showHistogram("Histogram - reduced", histReduced, 256, 256);
+		imshow("Dithering", dithering);
+		showHistogram("Histogram - ditheing", histDithering, 256, 256);
+		waitKey(0);
 	}
 }
+
 
 int main()
 {
@@ -816,20 +766,19 @@ int main()
 			case 13:
 				break;
 			case 14:
-				ex124();
+				l2ex124();
 				break;
 			case 15:
-				ex3();
+				l2ex3();
 				break;
 			case 16:
-				ex5();
+				l2ex5();
 				break;
 			case 17: 
-				fdp();
+				l3ex1234();
 				break;
 			case 18:
-				praguri();
-				FloydSteinberg();
+				l3ex56();
 				break;
 		}
 	}
