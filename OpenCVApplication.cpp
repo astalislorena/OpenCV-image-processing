@@ -587,7 +587,6 @@ void l3ex1234() {
 		}
 		for (int i = 0; i < 256; i ++) {
 			int newBin = (int) (i / 256.0 * m);
-			std::cout << newBin << std::endl;
 			histM[newBin] += hist[i];
 		}
 		imshow("Image", img);
@@ -647,43 +646,29 @@ void l3ex56() {
 						close = maxims[z];
 					}
 				}
-				reduced.at<uchar>(i, j) = close;
+				reduced.at<uchar>(i, j) = dithering.at<uchar>(i, j) = close;
 				histReduced[reduced.at<uchar>(i, j)] ++;
 				int error = val - close;
-				if (isInside(dithering, i + 1, j)) {
-					if ((reduced.at<uchar>(i + 1, j) + 7 * error / 16) < 0)
-						dithering.at<uchar>(i + 1, j) = 0;
-					else if ((reduced.at<uchar>(i + 1, j) + 7 * error / 16) > 255)
-						dithering.at<uchar>(i + 1, j) = 255;
-					else
-						dithering.at<uchar>(i + 1, j) = reduced.at<uchar>(i + 1, j) + 7 * error / 16;
+				if (isInside(dithering, i, j + 1)) {
+					int corrected = dithering.at<uchar>(i, j + 1) + 7 * error / 16.0;
+					dithering.at<uchar>(i, j + 1) = max(0, min(255, corrected));
 				}
-
-				if (isInside(dithering, i - 1, j + 1) == true) {
-					if ((reduced.at<uchar>(i - 1, j + 1) + 3 * error / 16) < 0)
-						dithering.at<uchar>(i - 1, j + 1) = 0;
-					else if ((reduced.at<uchar>(i - 1, j + 1) + 3 * error / 16) > 255)
-						dithering.at<uchar>(i - 1, j + 1) = 255;
-					else
-						dithering.at<uchar>(i - 1, j + 1) = reduced.at<uchar>(i - 1, j + 1) + 3 * error / 16;
+				if (isInside(dithering, i + 1, j - 1) == true) {
+					int corrected = dithering.at<uchar>(i + 1, j - 1) + 3 * error / 16.;
+					dithering.at<uchar>(i + 1, j - 1) = max(0, min(255, corrected));
 				}
-
-				if (isInside(dithering, i, j + 1) == true) {
-					if ((reduced.at<uchar>(i, j + 1) + 5 * error / 16) < 0)
-						dithering.at<uchar>(i, j + 1) = 0;
-					else if ((reduced.at<uchar>(i, j + 1) + 5 * error / 16) > 255)
-						dithering.at<uchar>(i, j + 1) = 255;
-					else
-						dithering.at<uchar>(i, j + 1) = reduced.at<uchar>(i, j + 1) + 5 * error / 16;
+				if (isInside(dithering, i + 1, j) == true) {
+					int corrected = dithering.at<uchar>(i + 1, j) + 5 * error / 16.;
+					dithering.at<uchar>(i + 1, j) = max(0, min(255, corrected));
 				}
 				if (isInside(dithering, i + 1, j + 1) == true) {
-					if ((reduced.at<uchar>(i + 1, j + 1) + error / 16) < 0)
-						dithering.at<uchar>(i + 1, j + 1) = 0;
-					else if ((reduced.at<uchar>(i + 1, j + 1) + error / 16) > 255)
-						dithering.at<uchar>(i + 1, j + 1) = 255;
-					else
-						dithering.at<uchar>(i + 1, j + 1) = reduced.at<uchar>(i + 1, j + 1) + error / 16;
+					int corrected = dithering.at<uchar>(i + 1, j + 1) + error / 16.;
+					dithering.at<uchar>(i + 1, j + 1) = max(0, min(255, corrected));
 				}
+			}
+		}
+		for (int i = 0; i < dithering.rows; i++) {
+			for (int j = 0; j < dithering.cols; j++) {
 				histDithering[dithering.at<uchar>(i, j)] ++;
 			}
 		}
@@ -697,6 +682,228 @@ void l3ex56() {
 	}
 }
 
+// Lab - 04
+
+void makeBW(Mat* src, Vec3b color)
+{
+	for (int i = 0; i < src->rows; i++) {
+		for (int j = 0; j < src->cols; j++) {
+			if (src->at<Vec3b>(i, j) == color) {
+				src->at<Vec3b>(i, j) = Vec3b(0, 0, 0);
+			}
+			else {
+				src->at<Vec3b>(i, j) = Vec3b(255, 255, 255);
+			}
+		}
+	}
+}
+
+int area(Mat src) {
+	int a = 0;
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src.at<Vec3b>(i, j) == Vec3b(0, 0, 0)) {
+				a++;
+			}
+		}
+	}
+	return a;
+}
+
+int rSum(Mat src) 
+{
+	int r = 0;
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src.at<Vec3b>(i, j) == Vec3b(0, 0, 0)) {
+				r += i;
+			}
+		}
+	}
+	return r;
+}
+
+int cSum(Mat src)
+{
+	int c = 0;
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src.at<Vec3b>(i, j) == Vec3b(0, 0, 0)) {
+				c += j;
+			}
+		}
+	}
+	return c;
+}
+
+double colorPerimeter(Mat* src, Mat imgBW) {
+	double p = 0;
+	for (int i = 0; i < imgBW.rows; i++) {
+		for (int j = 0; j < imgBW.cols; j++) {
+			if ((isInside(imgBW, i, j) && imgBW.at<Vec3b>(i, j) == Vec3b(0, 0, 0))) {
+				if ((isInside(imgBW, i + 1, j) && imgBW.at<Vec3b>(i + 1, j) == Vec3b(255, 255, 255)) ||
+					(isInside(imgBW, i + 1, j + 1) && imgBW.at<Vec3b>(i + 1, j + 1) == Vec3b(255, 255, 255)) ||
+					(isInside(imgBW, i + 1, j - 1) && imgBW.at<Vec3b>(i + 1, j - 1) == Vec3b(255, 255, 255)) ||
+					(isInside(imgBW, i - 1, j) && imgBW.at<Vec3b>(i - 1, j) == Vec3b(255, 255, 255)) ||
+					(isInside(imgBW, i - 1, j + 1) && imgBW.at<Vec3b>(i - 1, j + 1) == Vec3b(255, 255, 255)) ||
+					(isInside(imgBW, i - 1, j - 1) && imgBW.at<Vec3b>(i - 1, j - 1) == Vec3b(255, 255, 255)) ||
+					(isInside(imgBW, i, j + 1) && imgBW.at<Vec3b>(i, j + 1) == Vec3b(255, 255, 255)) ||
+					(isInside(imgBW, i, j - 1) && imgBW.at<Vec3b>(i, j - 1) == Vec3b(255, 255, 255))) {
+					src->at<Vec3b>(i, j) = Vec3b(255, 255, 0);
+					p += 1;
+				}
+			}
+		}
+	}
+	return p * (PI / 4);
+}
+
+void colorCenter(Mat* src, int ri, int ci) {
+	for (int i = 0; i < 5; i++) {
+		for (int j = 0; j < 5; j++) {
+			if (isInside(*src, ri - i, ci)) {
+				src->at<Vec3b>(ri - i, ci) = Vec3b(255, 255, 0);
+			}
+			if (isInside(*src, ri + i, ci)) {
+				src->at<Vec3b>(ri + i, ci) = Vec3b(255, 255, 0);
+			}
+			if (isInside(*src, ri, ci + j)) {
+				src->at<Vec3b>(ri, ci + j) = Vec3b(255, 255, 0);
+			}
+			if (isInside(*src, ri, ci - j)) {
+				src->at<Vec3b>(ri, ci - j) = Vec3b(255, 255, 0);
+			}
+
+		}
+	}
+}
+
+double phi(Mat src, int ri, int ci) {
+	double num = 0;
+	double numi = 0, numi0 = 0, numi1 = 0;
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src.at<Vec3b>(i, j) == Vec3b(0, 0, 0)) {
+				num += (i - ri) * (i - ri) * (j - ci) * (j - ci);
+				numi0 += (j - ci) * (j - ci);
+				numi1 += (i - ri) * (i - ri);
+			}
+		}
+	}
+	num *= 2;
+	numi = numi0 - numi1;
+	double ph = atan2(num, numi);
+	ph /= 2;
+	return ph;
+}
+
+void minMaxRC(Mat src, int* rmin, int* rmax, int* cmin, int* cmax) {
+	*rmin = INT64_MAX;
+	*rmax = INT64_MIN;
+	*cmin = INT64_MAX;
+	*cmax = INT64_MIN;
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src.at<Vec3b>(i, j) == Vec3b(0, 0, 0)) {
+				if (i > *rmax) {
+					*rmax = i;
+				}
+				if (i < *rmin) {
+					*rmin = i;
+				}
+				if (j > *cmax) {
+					*cmax = j;
+				}
+				if (j < *cmin) {
+					*cmin = j;
+				}
+			}
+		}
+	}
+}
+
+void histObj(Mat src) {
+	int histV[1000] = {}, histO[1000] = {};
+
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.rows; j++) {
+			if (src.at<Vec3b>(i, j) == Vec3b(0, 0, 0)) {
+				histO[i]++;
+				histV[j]++;
+			}
+		}
+	}
+	Mat imgHist(256, 256, CV_8UC3, CV_RGB(255, 255, 255)); // constructs a white image
+
+	//computes histogram maximum
+	int max_histV = 0;
+	int max_histO = 256;
+	for (int i = 0; i < 256; i++) {
+		if (histV[i] > max_histV)
+			max_histV = histV[i];
+		if (histO[i] > max_histO)
+			max_histO = histO[i];
+	}
+
+	double scaleV = 1.0;
+	scaleV = (double)256 / max_histV;
+	double scaleO = 1.0;
+	scaleO = (double)256 / max_histO;
+	int baselineV = 256 - 1, baselineO = 256 - 1;
+
+	for (int x = 0; x < 256; x++) {
+		Point p1 = Point(x, baselineO);
+		Point p2 = Point(x, baselineO - cvRound(histO[x] * scaleO));
+		line(imgHist, p1, p2, CV_RGB(255, 0, 255)); // histogram bins colored in magenta
+	}
+
+	for (int x = 0; x < 256; x++) {
+		Point p1 = Point(baselineV, x);
+		Point p2 = Point(baselineV - cvRound(histV[x] * scaleV), x);
+		line(imgHist, p1, p2, CV_RGB(255, 0, 255)); // histogram bins colored in magenta
+	}
+
+	imshow("Histogram", imgHist);
+}
+
+void mouseCallback(int event, int x, int y, int flags, void* param)
+{
+	if (event == EVENT_LBUTTONDOWN) {
+		Mat src = *((Mat*)param);
+		if (src.at<Vec3b>(y, x) == Vec3b(255, 255, 255)) return;
+		Mat imgBW = src.clone();
+		Mat result = src.clone();
+		Mat hist = Mat(src.rows, src.cols, CV_8UC3);
+		makeBW(&imgBW, src.at<Vec3b>(y, x));
+		int ai = area(imgBW);
+		double ri = rSum(imgBW) * 1.0 / ai;
+		double ci = cSum(imgBW) * 1.0 / ai;
+		colorCenter(&result, (int)ri, (int)ci);
+		double p = colorPerimeter(&result, imgBW);
+		double ph = phi(imgBW, ri, ci);
+		line(result, Point(ci, ri), Point(ci + 30 * cos(ph), ri + 30 * sin(ph)), CV_RGB(0, 255, 255));
+		std::cout << "Area = " << ai << "; C(" << ci << ", " << ri << ") ; Perimeter = " << p << " ; Phi = " << ph / (PI * 180) << " ; Subtiere = " << 4 * PI * (ai / p * p) << " ; Compactitate = " << (p > 0) ? 1 / (4 * PI * (ai / p * p)) : 0;
+		int rmin, rmax, cmin, cmax;
+		minMaxRC(imgBW, &rmin, &rmax, &cmin, &cmax);
+		std::cout << " ; R = " << ((cmax - cmin) + 1) * 1.0 / (rmax - rmin + 1) << " ; ";
+		histObj(imgBW);
+		imshow("Result", result);
+	}
+}
+
+
+
+void l4() 
+{
+	char fname[MAX_PATH];
+	while (openFileDlg(fname)) {
+		Mat src = imread(fname);
+		imshow("Source image", src);
+		setMouseCallback("Source image", mouseCallback, &src);
+		waitKey();
+		destroyAllWindows();
+	}
+}
 
 int main()
 {
@@ -723,7 +930,8 @@ int main()
 		printf(" 15 - L2 - 3\n");
 		printf(" 16 - L2 - 5\n");
 		printf(" 17 - L3 - 1, 2, 3, 4\n");
-		printf(" 18 - L4 - 5, 6\n");
+		printf(" 18 - L3 - 5, 6\n");
+		printf(" 19 - L4\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d",&op);
@@ -779,6 +987,9 @@ int main()
 				break;
 			case 18:
 				l3ex56();
+				break;
+			case 19:
+				l4();
 				break;
 		}
 	}
