@@ -4,6 +4,8 @@
 #include "stdafx.h"
 #include "common.h"
 #include <vector>
+#include <queue>
+#include <random>
 
 
 void testOpenImage()
@@ -905,6 +907,94 @@ void l4()
 	}
 }
 
+// Lab - 05
+
+void showImageColoredByLabels(Mat src) {
+	Vec3b color[200];
+	for (int i = 0; i < 200; i++) {
+		color[i] = Vec3b(rand() % 256, rand() % 256, rand() % 256);
+	}
+	Mat result = Mat(src.rows, src.cols, CV_8UC3);
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			result.at<Vec3b>(i, j) = color[src.at<uchar>(i, j)];
+		}
+	}
+	imshow("Conex components", result);
+}
+
+void bfs(Mat src, bool with8Neighbours) {
+	int label = 0;
+	Mat labels = Mat::zeros(src.rows, src.cols, IMREAD_GRAYSCALE);
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src.at<uchar>(i, j) == 0 && labels.at<uchar>(i, j) == 0) {
+				label++;
+				std::queue<Point> Q;
+				labels.at<uchar>(i, j) = label;
+				Q.push(Point(j, i));
+				while (!Q.empty()) {
+					Point q = Q.front();
+					Q.pop();
+					if (with8Neighbours) {
+						if (src.at<uchar>(q.y + 1, q.x + 1) == 0 && labels.at<uchar>(q.y + 1, q.x + 1) == 0 && isInside(src, q.y + 1, q.x + 1)) {
+							labels.at<uchar>(q.y + 1, q.x + 1) = label;
+							Q.push(Point(q.x + 1, q.y + 1));
+						}
+
+						if (src.at<uchar>(q.y - 1, q.x + 1) == 0 && labels.at<uchar>(q.y - 1, q.x + 1) == 0 && isInside(src, q.y - 1, q.x + 1)) {
+							labels.at<uchar>(q.y - 1, q.x + 1) = label;
+							Q.push(Point(q.x + 1, q.y - 1));
+						}
+
+						if (src.at<uchar>(q.y + 1, q.x - 1) == 0 && labels.at<uchar>(q.y + 1, q.x - 1) == 0 && isInside(src, q.y + 1, q.x - 1)) {
+							labels.at<uchar>(q.y + 1, q.x - 1) = label;
+							Q.push(Point(q.x - 1, q.y + 1));
+						}
+
+						if (src.at<uchar>(q.y - 1, q.x - 1) == 0 && labels.at<uchar>(q.y - 1, q.x - 1) == 0 && isInside(src, q.y - 1, q.x - 1)) {
+							labels.at<uchar>(q.y - 1, q.x - 1) = label;
+							Q.push(Point( q.x - 1, q.y - 1));
+						}
+					}
+					if (src.at<uchar>(q.y + 1, q.x) == 0 && labels.at<uchar>(q.y + 1, q.x) == 0 && isInside(src, q.y + 1, q.x)) {
+						labels.at<uchar>(q.y + 1, q.x) = label;
+						Q.push(Point( q.x, q.y + 1));
+					}
+
+					if (src.at<uchar>(q.y - 1, q.x) == 0 && labels.at<uchar>(q.y - 1, q.x) == 0 && isInside(src, q.y - 1, q.x)) {
+						labels.at<uchar>(q.y - 1, q.x) = label;
+						Q.push(Point(q.x, q.y - 1));
+					}
+
+					if (src.at<uchar>(q.y, q.x - 1) == 0 && labels.at<uchar>(q.y, q.x - 1) == 0 && isInside(src, q.y, q.x - 1)) {
+						labels.at<uchar>(q.y, q.x - 1) = label;
+						Q.push(Point(q.x - 1, q.y));
+					}
+
+					if (src.at<uchar>(q.y, q.x + 1) == 0 && labels.at<uchar>(q.y, q.x + 1) == 0 && isInside(src, q.y, q.x + 1)) {
+						labels.at<uchar>(q.y, q.x + 1) = label;
+						Q.push(Point( q.x + 1, q.y));
+					}
+
+				}
+			}
+		}
+	}
+	showImageColoredByLabels(labels);
+}
+
+void l5() {
+	char fname[MAX_PATH];
+	while (openFileDlg(fname)) {
+		Mat src = imread(fname, IMREAD_GRAYSCALE);
+		imshow("Source image", src);
+		bfs(src, true);
+		//bfs(src, false);
+		waitKey();
+	}
+}
+
 int main()
 {
 	int op;
@@ -932,6 +1022,7 @@ int main()
 		printf(" 17 - L3 - 1, 2, 3, 4\n");
 		printf(" 18 - L3 - 5, 6\n");
 		printf(" 19 - L4\n");
+		printf(" 20 - L5\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d",&op);
@@ -990,6 +1081,9 @@ int main()
 				break;
 			case 19:
 				l4();
+				break;
+			case 20:
+				l5();
 				break;
 		}
 	}
