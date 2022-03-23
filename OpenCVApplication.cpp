@@ -6,6 +6,8 @@
 #include <vector>
 #include <queue>
 #include <random>
+#include <iostream>
+#include <fstream>
 
 
 void testOpenImage()
@@ -800,10 +802,10 @@ double phi(Mat src, int ri, int ci) {
 }
 
 void minMaxRC(Mat src, int* rmin, int* rmax, int* cmin, int* cmax) {
-	*rmin = INT64_MAX;
-	*rmax = INT64_MIN;
-	*cmin = INT64_MAX;
-	*cmax = INT64_MIN;
+	*rmin = src.rows;
+	*rmax = 0;
+	*cmin = src.cols;
+	*cmax = 0;
 	for (int i = 0; i < src.rows; i++) {
 		for (int j = 0; j < src.cols; j++) {
 			if (src.at<Vec3b>(i, j) == Vec3b(0, 0, 0)) {
@@ -909,7 +911,7 @@ void l4()
 
 // Lab - 05
 
-void showImageColoredByLabels(Mat src) {
+void showImageColoredByLabels(std::string name, Mat src) {
 	Vec3b color[200];
 	for (int i = 0; i < 200; i++) {
 		color[i] = Vec3b(rand() % 256, rand() % 256, rand() % 256);
@@ -920,7 +922,7 @@ void showImageColoredByLabels(Mat src) {
 			result.at<Vec3b>(i, j) = color[src.at<uchar>(i, j)];
 		}
 	}
-	imshow("Conex components", result);
+	imshow(name, result);
 }
 
 void bfs(Mat src, bool with8Neighbours) {
@@ -981,7 +983,7 @@ void bfs(Mat src, bool with8Neighbours) {
 			}
 		}
 	}
-	showImageColoredByLabels(labels);
+	showImageColoredByLabels(with8Neighbours ? "Conex Components 8 neighbours" : "Conex Components 4 neighbours", labels);
 }
 
 void l5() {
@@ -990,7 +992,124 @@ void l5() {
 		Mat src = imread(fname, IMREAD_GRAYSCALE);
 		imshow("Source image", src);
 		bfs(src, true);
-		//bfs(src, false);
+		bfs(src, false);
+		waitKey();
+	}
+}
+
+// Lab - 06
+//			0   1   2   3   4   5   6   7
+int di[] = {0, -1, -1, -1,  0,  1,  1,  1};
+int dj[] = {1,  1,  0, -1, -1, -1,  0,  1};
+void contour(Mat src) {
+	Mat dst = Mat(src.rows, src.cols, CV_8UC3);
+	int start0i = -1, start0j = -1, start1i = -1, start1j = -1;
+	int current0i = -1, current0j = -1, current1i = -1, current1j = -1;
+	for (int i = 0; i < src.rows && start0i == -1 && start0j == -1; i++) {
+		for (int j = 0; j < src.cols && start0i == -1 && start0j == -1; j++) {
+			if (src.at<uchar>(i, j) == 0) {
+				start0i = i;
+				start0j = j;
+				current0i = i;
+				current0j = j;
+				dst.at<Vec3b>(i, j) = Vec3b(255, 0, 255);
+			}
+		}
+	}
+
+	std::cout << start0i << " " << start0j << std::endl;
+	int dir = 7;
+	std::vector<int> cod = { 7 };
+	do {
+		int start_dir = dir % 2 == 0 ? (dir + 7) % 8 : (dir + 6) % 8;
+		bool done = false;
+		int i = start_dir;
+		std::cout << start_dir << " ";
+		while(!done) {
+			if (src.at<uchar>(current0i + di[i], current0j + dj[i]) == 0) {
+				if (start1i == -1 && start1j == -1) {
+						start1i = current0i + di[i];
+						start1j = current0j + dj[i];
+				}
+				dst.at<Vec3b>(current0i + di[i], current0j + dj[i]) = Vec3b(255, 0, 255);
+				current1i = current0i;
+				current1j = current0j;
+				current0i += di[i];
+				current0j += dj[i];
+				cod.push_back(i);
+				dir = i;
+				done = true;
+				std::cout << "\nHere\n";
+			}
+			else {
+				i++;
+				i %= 8;
+			}
+		}
+	} while (!(current0i == start0i && current0j == start0j));
+	std::vector<int> derivata;
+	for (int i = 0; i < cod.size(); i++) {
+		if (i == cod.size() - 1) {
+			derivata.push_back(abs(cod.at(0) - cod.at(i)));
+		}
+		else {
+			derivata.push_back(abs(cod.at(i) - cod.at(i + 1)));
+		}
+		std::cout << cod.at(i) << " ";
+	}
+	std::cout << std::endl;
+	for (int i = 0; i < cod.size(); i++) {
+		std::cout << derivata.at(i) << " ";
+	}
+	
+	imshow("Contour", dst);
+}
+
+void l6ex12() {
+	char fname[MAX_PATH];
+	while (openFileDlg(fname)) {
+		Mat src = imread(fname, IMREAD_GRAYSCALE);
+		imshow("Source image", src);
+		contour(src);
+		waitKey();
+	}
+}
+
+void reconstruct(int row, int col, std::vector<int> cont) {
+	Mat dst = Mat(500, 500, CV_8UC3);
+	int curri = row, currj = col;
+	dst.at<Vec3b>(curri, currj) = Vec3b(255, 0, 255);
+	int index = cont.size() - 1;
+	do {
+		int dir = cont.at(index);
+		curri += di[index];
+		currj += dj[index];
+		dst.at<Vec3b>(curri, currj) = Vec3b(255, 0, 255);
+	} while (index >= 0);
+	imshow("Reconstruct", dst);
+}
+
+void l6ex3() {
+	char fname[MAX_PATH], iname[MAX_PATH], txtname[MAX_PATH];
+	if (openFolderDlg(fname)) {
+		strcpy(iname, fname); 
+		strcat(iname, "\\gray_background.bmp");
+		strcpy(txtname, fname);
+		strcat(txtname, "\\reconstruct.txt");
+		std::ifstream file;
+		file.open(txtname);
+		int rows, cols; // of the start
+		file >> rows >> cols;
+		int size;
+		file >> size;
+		std::vector<int> cont;
+		for (int i = 0; i < size; i++) {
+			int elem;
+			file >> elem;
+			cont.push_back(elem);
+		}
+		std::cout << cont.size();
+		reconstruct(rows, cols, cont);
 		waitKey();
 	}
 }
@@ -1023,6 +1142,8 @@ int main()
 		printf(" 18 - L3 - 5, 6\n");
 		printf(" 19 - L4\n");
 		printf(" 20 - L5\n");
+		printf(" 21 - L6 - 1, 2\n");
+		printf(" 22 - L6 - 3\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d",&op);
@@ -1084,6 +1205,12 @@ int main()
 				break;
 			case 20:
 				l5();
+				break;
+			case 21:
+				l6ex12();
+				break;
+			case 22: 
+				l6ex3();
 				break;
 		}
 	}
