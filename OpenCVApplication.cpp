@@ -1114,6 +1114,159 @@ void l6ex3() {
 	}
 }
 
+// Lab - 07
+
+void dilatare(Mat src, Mat* dst) {
+	for (int i = 1; i < src.rows - 1; i++) {
+		for (int j = 1; j < src.cols - 1; j++) {
+			if (src.at<uchar>(i, j) == 0) {
+				dst->at<uchar>(i, j) = 0;
+				dst->at<uchar>(i + di[0], j + dj[0]) = 0;
+				dst->at<uchar>(i + di[1], j + dj[1]) = 0;
+				dst->at<uchar>(i + di[2], j + dj[2]) = 0;
+				dst->at<uchar>(i + di[3], j + dj[3]) = 0;
+				dst->at<uchar>(i + di[4], j + dj[4]) = 0;
+				dst->at<uchar>(i + di[5], j + dj[5]) = 0;
+				dst->at<uchar>(i + di[6], j + dj[6]) = 0;
+				dst->at<uchar>(i + di[7], j + dj[7]) = 0;
+			}
+		}
+	}
+}
+
+void eroziune(Mat src, Mat* dst) {
+	for (int i = 1; i < src.rows - 1; i++) {
+		for (int j = 1; j < src.cols - 1; j++) {
+			if (src.at<uchar>(i, j) == 0 &&
+				src.at<uchar>(i + di[0], j + dj[0]) == 0 &&
+				src.at<uchar>(i + di[1], j + dj[1]) == 0 &&
+				src.at<uchar>(i + di[2], j + dj[2]) == 0 &&
+				src.at<uchar>(i + di[3], j + dj[3]) == 0 &&
+				src.at<uchar>(i + di[4], j + dj[4]) == 0 &&
+				src.at<uchar>(i + di[5], j + dj[5]) == 0 &&
+				src.at<uchar>(i + di[6], j + dj[6]) == 0 &&
+				src.at<uchar>(i + di[7], j + dj[7]) == 0) {
+				dst->at<uchar>(i, j) = 0;
+			}
+		}
+	}
+}
+
+void deschidere(Mat src, Mat* dst) {
+	Mat rezInterm = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+	eroziune(src, &rezInterm);
+	dilatare(rezInterm, dst);
+}
+
+void inchidere(Mat src, Mat* dst) {
+	Mat rezInterm = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+	dilatare(src, &rezInterm);
+	eroziune(rezInterm, dst);
+}
+
+void diferenta(Mat src1, Mat src2, Mat* dst) {
+	for (int i = 0; i < src1.rows; i++) {
+		for (int j = 0; j < src1.cols; j++) {
+			if (src1.at<uchar>(i, j) == 0 && src2.at<uchar>(i, j) == 255) {
+				dst->at<uchar>(i, j) = 0;
+			}
+		}
+	}
+}
+
+void extractContur(Mat src, Mat* dst) {
+	Mat rezInterm = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+	eroziune(src, &rezInterm);
+	diferenta(src, rezInterm, dst);
+}
+
+
+void l7ex12() {
+	char fname[MAX_PATH];
+	while (openFileDlg(fname)) {
+		Mat src = imread(fname, IMREAD_GRAYSCALE);
+		Mat dstDil = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		Mat dstEroz = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		Mat dstDesc = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		Mat dstInch = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+
+		Mat dstDilN = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		Mat dstErozN = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		Mat dstDescN = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		Mat dstInchN = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		int n;
+		std::cout << "n = ";
+		std::cin >> n;
+		dilatare(src, &dstDil);
+		eroziune(src, &dstEroz);
+		inchidere(src, &dstInch);
+		deschidere(src, &dstDesc);
+		imshow("Source image", src);
+		imshow("Dilatare", dstDil);
+		imshow("Eroziune", dstEroz);
+		imshow("Deschidere", dstDesc);
+		imshow("Inchidere", dstInch);
+		for (int i = 0; i < n; i++) {
+			dilatare(dstDil, &dstDilN);
+			eroziune(dstEroz, &dstErozN);
+			inchidere(dstInch, &dstInchN);
+			deschidere(dstDesc, &dstDescN);
+			dstDil = dstDilN.clone();
+			dstEroz = dstErozN.clone();
+			dstInch = dstInchN.clone();
+			dstDesc = dstDescN.clone();
+		}
+
+		imshow("Dilatare N", dstDilN);
+		imshow("Eroziune N", dstErozN);
+		imshow("Inchidere N", dstInchN);
+		imshow("Deschidere N", dstDescN);
+		waitKey();
+	}
+}
+
+bool equals(Mat src1, Mat src2) {
+	for (int i = 0; i < src1.rows; i++) {
+		for (int j = 0; j < src1.cols; j++) {
+			if (src1.at<uchar>(i, j) != src2.at<uchar>(i, j)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+void umplere(int event, int x, int y, int flags, void* param) {
+	if (event == EVENT_LBUTTONDOWN) {
+		Mat src = *((Mat*)param);
+		if (!isInside(src, y, x)) return;
+		Mat xk = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		Mat xki = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		xki.at<uchar>(y, x) = 0;
+		do {
+			xk = xki.clone();
+			Mat rezInterm = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+			dilatare(xk, &rezInterm);
+			diferenta(rezInterm, src, &xki);
+		} while (!equals(xk, xki));
+		imshow("Umplere", xk);
+	}
+}
+
+void l7ex34() {
+	char fname[MAX_PATH];
+	while (openFileDlg(fname)) {
+		Mat src = imread(fname, IMREAD_GRAYSCALE);
+		Mat dstCont = Mat(src.rows, src.cols, CV_8UC1, Scalar(255, 255, 255));
+		extractContur(src, &dstCont);
+		imshow("Source image", src);
+		imshow("Contur", dstCont);
+		setMouseCallback("Contur", umplere, &dstCont);
+		waitKey();
+		destroyAllWindows();
+	}
+}
+
 int main()
 {
 	int op;
@@ -1144,6 +1297,8 @@ int main()
 		printf(" 20 - L5\n");
 		printf(" 21 - L6 - 1, 2\n");
 		printf(" 22 - L6 - 3\n");
+		printf(" 23 - L7 - 1, 2\n");
+		printf(" 24 - L7 - 3, 4\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d",&op);
@@ -1211,6 +1366,12 @@ int main()
 				break;
 			case 22: 
 				l6ex3();
+				break;
+			case 23: 
+				l7ex12();
+				break;
+			case 24:
+				l7ex34();
 				break;
 		}
 	}
