@@ -1267,6 +1267,208 @@ void l7ex34() {
 	}
 }
 
+// Lab - 08
+
+double medie(Mat src) {
+	double m = 0;
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			m += src.at<uchar>(i, j);
+		}
+	}
+	m /= (src.rows * src.cols);
+	return m;
+}
+
+double deviatie(Mat src) {
+	double d = 0, u = medie(src);
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			d += pow((src.at<uchar>(i, j) - u), 2);
+		}
+	}
+	d /= (src.rows * src.cols);
+	d = sqrt(d);
+	return d;
+}
+
+void histogram(Mat src, int hist[256]) {
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			hist[src.at<uchar>(i, j)] ++;
+		}
+	}
+}
+
+void cumulativeHistogram(int hist[255], int histCum[256]) {
+	for (int i = 0; i < 256; i++) {
+		for (int j = 0; j <= i; j++) {
+			histCum[i] += hist[j];
+		}
+	}
+}
+
+
+void l8ex1() {
+	char fname[MAX_PATH];
+	while (openFileDlg(fname)) {
+		Mat src = imread(fname, IMREAD_GRAYSCALE);
+		imshow("Source image", src);
+		int hist[256] = {}, histCum[256] = {};
+		histogram(src, hist);
+		cumulativeHistogram(hist, histCum);
+		double m = medie(src);
+		double d = deviatie(src);
+		showHistogram("Histogram", hist, 255, 255);
+		showHistogram("Cumulative histogram", histCum, 255, 255);
+		std::cout << "M = " << m << "; D = " << d << ";" << std::endl;
+		waitKey();
+	}
+}
+
+void matMinMax(Mat src, int* min, int* max) {
+	*min = src.at<uchar>(0, 0); 
+	*max = src.at<uchar>(0, 0);
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src.at<uchar>(i, j) > *max) {
+				*max = src.at<uchar>(i, j);
+			}
+			else {
+				if (src.at<uchar>(i, j) < *min) {
+					*min = src.at<uchar>(i, j);
+				}
+			}
+		}
+	}
+}
+
+void binaryImage(Mat src, double Tf, Mat* dst) {
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			if (src.at<uchar>(i, j) > Tf) {
+				dst->at<uchar>(i, j) = 255;
+			}
+			else {
+				dst->at<uchar>(i, j) = 0;
+			}
+		}
+	}
+}
+
+double automaticBin(Mat src, double epsilon) {
+	int hist[256] = {};
+	histogram(src, hist);
+	int min = 0, max = 0;
+	matMinMax(src, &min, &max);
+	double t[256] = {};
+	t[0] = ((double) (min + max) / 2);
+	int k = 0;
+	do {
+		k++;
+		double N1 = 0, u1 = 0;
+		for (int i = 0; i <= floor(t[k - 1]); i++) {
+			N1 += hist[i];
+			u1 += i * hist[i];
+		}
+		u1 /= N1;
+
+		double N2 = 0, u2 = 0;
+		for (int i = 255; i >= floor(t[k - 1]) + 1; i--) {
+			N2 += hist[i];
+			u2 += i * hist[i];
+		}
+		u2 /= N2;
+		t[k] = (u1 + u2) / 2;
+	} while (abs(t[k] - t[k - 1]) < epsilon && k < 256);
+	return t[k];
+}
+
+
+
+void l8ex2() {
+	char fname[MAX_PATH];
+	while (openFileDlg(fname)) {
+		Mat src = imread(fname, IMREAD_GRAYSCALE);
+		double epsilon = 0;
+		std::cout << "e = ";
+		std::cin >> epsilon;
+		imshow("Source image", src);
+
+		double Tf = automaticBin(src, epsilon);
+		Mat dst = src.clone();
+		std::cout << "Tfinal = " << Tf << std::endl;
+		binaryImage(src, Tf, &dst);
+		imshow("Binary image", dst);
+		waitKey();
+	}
+}
+
+void negativ(Mat* img) {
+	for (int i = 0; i < img->rows; i++) {
+		for (int j = 0; j < img->cols; j++) {
+			img->at<uchar>(i, j) = min(255, max(255 - img->at<uchar>(i, j), 0));
+		}
+	}
+	int hist[256] = {};
+	histogram(*img, hist);
+	showHistogram("Histogram negativ", hist, 255, 255);
+}
+
+void modifContrast(Mat src, int IoutMin, int IoutMax, Mat* dst) {
+	int IinMin = 0, IinMax = 0;
+	matMinMax(src, &IinMin, &IinMax);
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			dst->at<uchar>(i, j) = min(255, max(IoutMin + (src.at<uchar>(i, j) - IinMin) * ((IoutMax - IoutMin) / (IinMax - IinMin)), 0));
+		}
+	}
+	int hist[256] = {};
+	histogram(*dst, hist);
+	showHistogram("Modify contrast", hist, 255, 255);
+}
+
+void gammaCoorrection(Mat src, double gamma, Mat* dst) {
+	for (int i = 0; i < src.rows; i++) {
+		for (int j = 0; j < src.cols; j++) {
+			dst->at<uchar>(i, j) = min(255, max(0, pow((255 * (src.at<uchar>(i, j) / 255)), gamma)));
+		}
+	}
+	int hist[256] = {};
+	histogram(*dst, hist);
+	showHistogram("Histogram gamma correction", hist, 255, 255);
+}
+
+
+void l8ex3() {
+	char fname[MAX_PATH];
+	while (openFileDlg(fname)) {
+		int IoutMin = 0, IoutMax = 0;
+		std::cout << "IoutMin = ";
+		std::cin >> IoutMin;
+		std::cout << "IoutMax = ";
+		std::cin >> IoutMax;
+		double gamma = 0;
+		std::cout << "Gamma = ";
+		std::cin >> gamma;
+		Mat src = imread(fname, IMREAD_GRAYSCALE);
+		imshow("Identitate", src);
+		int hist[256] = {};
+		histogram(src, hist);
+		showHistogram("Histogram identitate", hist, 255, 255);
+		Mat neg = src.clone();
+		negativ(&neg);
+		imshow("Negativ", neg);
+		Mat cont = src.clone();
+		modifContrast(src, IoutMin, IoutMax, &cont);
+		imshow("Cont", cont);
+		Mat gam = src.clone();
+		gammaCoorrection(src, gamma, &gam);
+		imshow("Correctie gamma", gam);
+		waitKey();
+	}
+}
+
 int main()
 {
 	int op;
@@ -1299,9 +1501,13 @@ int main()
 		printf(" 22 - L6 - 3\n");
 		printf(" 23 - L7 - 1, 2\n");
 		printf(" 24 - L7 - 3, 4\n");
+		printf(" 25 - L8 - 1\n");
+		printf(" 26 - L8 - 2\n");
+		printf(" 27 - L8 - 3\n");
+		printf(" 28 - L8 - 4\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
-		scanf("%d",&op);
+		std::cin >> op;
 		switch (op)
 		{
 			case 1:
@@ -1372,6 +1578,17 @@ int main()
 				break;
 			case 24:
 				l7ex34();
+				break;
+			case 25:
+				l8ex1();
+				break;
+			case 26:
+				l8ex2();
+				break;
+			case 27:
+				l8ex3();
+				break;
+			case 28:
 				break;
 		}
 	}
